@@ -1,0 +1,15 @@
+{
+  "name": "@local/dsh-session-http",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "JSON HTTP gateway over ordinary DSH Sessions: list workspaces and sessions, create a session, post a message and get the answer",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

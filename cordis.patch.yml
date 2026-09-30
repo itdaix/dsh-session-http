@@ -1,0 +1,62 @@
+# session-http bundle.
+#
+# The gateway listens on its own isolated WebServer so exposing it never
+# exposes the browser API: `isolate: { webServer: true }` gives this group a
+# separate `ctx.webServer`, and only the routes the plugin registers exist on
+# it. Everything else the plugin needs (sessionController, workspaceRegistry,
+# credentials) is inherited from the surrounding tree.
+#
+# Authentication is a credential REFERENCE, not a secret: the value is
+# resolved per request from the DSH credential seam, so it may come from the
+# process environment or from the provider-managed $DSH_HOME/.credentials.yaml.
+# Configure it one of these ways:
+#   * store it once — add `DSH_SESSION_HTTP_KEY: <secret>` to
+#     $DSH_HOME/.credentials.yaml (watched; rotation needs no restart)
+#   * or export DSH_SESSION_HTTP_KEY before starting dsh
+# An unconfigured reference answers 503; it never blocks the composition.
+#
+# APPROVALS. A Session created here may need a permission decision. With the
+# `ask` policy and a Web UI open, the harness raises a modal and the turn
+# blocks until a human answers — which an API caller cannot do.
+#
+# `relayApprovals: true` (the default) hands those questions to the caller
+# instead: the gateway answers the `approval/request` waterfall, parks the turn,
+# and publishes the ask on `GET /approvals` until `POST /approvals/{id}` decides
+# it. Every other path — no decision within `approvalTimeoutMs`, a cancelled
+# turn, an unloaded plugin — settles on `rejected`, which the tool pipeline
+# fails closed on. A relay therefore REQUIRES `ask`: the `never` policy returns
+# `rejected` before the waterfall runs, so no answerer would ever see the ask.
+# Set `relayApprovals: false` to go back to a silent `never`.
+#
+# Approvals are relayed only for Sessions this gateway created or messaged, so
+# an interactive GUI Session keeps its own modal.
+#
+# `permissionPreset` is optional; when set, every Session this gateway creates
+# gets that sandbox/approval bundle. The shipped names are `read-only`,
+# `workspace-write`, and `danger-full-access`. Leave it out to inherit the
+# deployment default. A per-request `permissionPreset`/`approvalPolicy` in the
+# POST body overrides either value.
+#
+# Optional: DSH_SESSION_HTTP_PORT overrides the listen port (default 3082).
+- insert:
+    - id: session-http-ingress
+      name: cordis:group
+      group: true
+      isolate:
+        webServer: true
+      config:
+        - id: session-http-server
+          name: '@deepseek-ai/dsh-host-webserver'
+          config:
+            host: '127.0.0.1'
+            port: !!js Number(process.env.DSH_SESSION_HTTP_PORT ?? 3082)
+
+        - id: session-http
+          name: '@local/dsh-session-http'
+          config:
+            secretEnv: DSH_SESSION_HTTP_KEY
+            maxBodyBytes: 1048576
+            turnTimeoutMs: 600000
+            relayApprovals: true
+            approvalTimeoutMs: 120000
+            # permissionPreset: read-only

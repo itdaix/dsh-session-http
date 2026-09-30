@@ -1,0 +1,12 @@
+node_modules/
+*.log
+*.bak
+*.bak-*
+.DS_Store
+Thumbs.db
+desktop.ini
+.ai-output/
+.read-office/
+.dsh-im/
+.dsh-memory-sqlite/
+.dsh-agent-as-tool/
